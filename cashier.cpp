@@ -1,6 +1,8 @@
 #include <iostream>
 #include <iomanip>
 #include <sqlite3.h>
+#include <string>
+#include <optional>
 
 struct Item {
     std::string barcodeID;
@@ -8,6 +10,44 @@ struct Item {
     float price;
     float cost;
 };
+
+// Function to check if barcode exists in the database and return the corresponding item
+std::optional<Item> getItemByBarcode(const std::string& barcode) {
+    sqlite3* db;
+    int rc = sqlite3_open("items.db", &db);
+    if (rc) {
+        std::cerr << "Can't open database: " << sqlite3_errmsg(db) << std::endl;
+        return std::nullopt;
+    }
+
+    std::string sql = "SELECT name, price, cost FROM items WHERE barcode = '" + barcode + "';";
+    sqlite3_stmt* stmt;
+    rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        std::cerr << "Failed to execute statement: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_close(db);
+        return std::nullopt;
+    }
+
+    // Step through the result set
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        Item item;
+        item.barcodeID = barcode;
+        item.name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        item.price = sqlite3_column_double(stmt, 1);
+        item.cost = sqlite3_column_double(stmt, 2);
+        sqlite3_finalize(stmt);
+        sqlite3_close(db);
+        return item;
+    }
+
+    // Barcode not found
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+    return std::nullopt;
+}
+
+
 
 // Callback function to handle SQLite3 errors
 int callback(void* NotUsed, int argc, char** argv, char** azColName) {
@@ -23,6 +63,13 @@ void add_item() {
     std::cout << "Scan barcode: ";
     std::cin >> newItem.barcodeID;
     std::cin.ignore(); // Clear input buffer
+
+    // Check if barcode already exists
+    if (getItemByBarcode(newItem.barcodeID).has_value()) {
+        std::cerr << "Error: Barcode already exists in the database." << std::endl;
+        return;
+    }
+
     std::cout << "Enter name: ";
     std::getline(std::cin, newItem.name);
     std::cout << "Enter price: ";
@@ -72,6 +119,10 @@ void add_item() {
 // Implement scan_item() function.
 
 // Implement sale function.
+
+// Implement remove_item() function.
+
+// Implement edit_item() function.
 
 
 int main() {
