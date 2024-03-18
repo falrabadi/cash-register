@@ -116,11 +116,41 @@ void add_item() {
     sqlite3_close(db);
 }
 
+// Function to delete an item from the SQLite3 database
+void delete_item() {
+    std::string barcode;
+    std::cout << "Scan barcode of the item to delete: ";
+    std::cin >> barcode;
+
+    // Open database connection
+    sqlite3* db;
+    int rc = sqlite3_open("items.db", &db);
+    if (rc) {
+        std::cerr << "Can't open database: " << sqlite3_errmsg(db) << std::endl;
+        return;
+    }
+
+    // Construct SQL query to delete item
+    std::string deleteSQL = "DELETE FROM items WHERE barcode = '" + barcode + "';";
+
+    // Execute SQL query
+    char* errorMessage;
+    rc = sqlite3_exec(db, deleteSQL.c_str(), nullptr, 0, &errorMessage);
+    if (rc != SQLITE_OK) {
+        std::cerr << "SQL error: " << errorMessage << std::endl;
+        sqlite3_free(errorMessage);
+    } else {
+        std::cout << "Item with barcode " << barcode << " deleted successfully." << std::endl;
+    }
+
+    // Close database connection
+    sqlite3_close(db);
+}
+
+
 // Implement scan_item() function.
 
 // Implement sale function.
-
-// Implement remove_item() function.
 
 // Implement edit_item() function.
 
@@ -132,6 +162,8 @@ int main() {
 
     if (choice == 1) {
         add_item();
+    }else if (choice == 2){
+        delete_item();
     }
 
     return 0;
