@@ -147,12 +147,88 @@ void delete_item() {
     sqlite3_close(db);
 }
 
+// Function to update an item in the SQLite3 database
+void update_item() {
+    std::string barcode;
+    std::cout << "Scan barcode of the item to update: ";
+    std::cin >> barcode;
+
+    // Open database connection
+    sqlite3* db;
+    int rc = sqlite3_open("items.db", &db);
+    if (rc) {
+        std::cerr << "Can't open database: " << sqlite3_errmsg(db) << std::endl;
+        return;
+    }
+
+    // Check if the item with the provided barcode exists
+    std::string selectSQL = "SELECT * FROM items WHERE barcode = '" + barcode + "';";
+    sqlite3_stmt* stmt;
+    rc = sqlite3_prepare_v2(db, selectSQL.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        std::cerr << "Failed to execute statement: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_close(db);
+        return;
+    }
+
+    if (sqlite3_step(stmt) != SQLITE_ROW) {
+        std::cerr << "Item with barcode " << barcode << " not found." << std::endl;
+        sqlite3_finalize(stmt);
+        sqlite3_close(db);
+        return;
+    }
+
+    // Item found, fetch its details
+    std::string name(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+    float price = sqlite3_column_double(stmt, 2);
+    float cost = sqlite3_column_double(stmt, 3);
+    sqlite3_finalize(stmt);
+
+    // Prompt user for updated information
+    std::cout << "Enter new name: ";
+    std::string newName;
+    std::getline(std::cin >> std::ws, newName); // Read input including whitespaces
+    if (newName.empty()) {
+        newName = name;
+    }
+
+    std::cout << "Enter new price (or 0 to keep current): ";
+    float newPrice;
+    std::cin >> newPrice;
+    if (newPrice == 0) {
+        newPrice = price;
+    }
+
+    std::cout << "Enter new cost (or 0 to keep current): ";
+    float newCost;
+    std::cin >> newCost;
+    if (newCost == 0) {
+        newCost = cost;
+    }
+
+    // Construct SQL query to update item
+    std::string updateSQL = "UPDATE items SET name = '" + newName + "', "
+                            "price = " + std::to_string(newPrice) + ", "
+                            "cost = " + std::to_string(newCost) + " "
+                            "WHERE barcode = '" + barcode + "';";
+
+    // Execute SQL query
+    char* errorMessage;
+    rc = sqlite3_exec(db, updateSQL.c_str(), nullptr, 0, &errorMessage);
+    if (rc != SQLITE_OK) {
+        std::cerr << "SQL error: " << errorMessage << std::endl;
+        sqlite3_free(errorMessage);
+    } else {
+        std::cout << "Item with barcode " << barcode << " updated successfully." << std::endl;
+    }
+
+    // Close database connection
+    sqlite3_close(db);
+}
 
 // Implement scan_item() function.
 
 // Implement sale function.
-
-// Implement edit_item() function.
 
 
 int main() {
@@ -164,6 +240,8 @@ int main() {
         add_item();
     }else if (choice == 2){
         delete_item();
+    }else if (choice == 3){
+        update_item();
     }
 
     return 0;
